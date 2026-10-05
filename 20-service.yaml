@@ -1,0 +1,14 @@
+# ClusterIP для сценария pod -> Service (добавляет тест kube-proxy и conntrack)
+apiVersion: v1
+kind: Service
+metadata:
+  name: srv-svc
+  namespace: netbench
+spec:
+  type: ClusterIP
+  selector: {app: netbench, role: server}
+  ports:
+    - {name: iperf-tcp, port: 5201, targetPort: 5201, protocol: TCP}
+    - {name: iperf-udp, port: 5201, targetPort: 5201, protocol: UDP}
+    - {name: netperf-ctl, port: 12865, targetPort: 12865, protocol: TCP}
+    - {name: netperf-data, port: 12866, targetPort: 12866, protocol: TCP}

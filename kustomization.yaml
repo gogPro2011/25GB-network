@@ -1,0 +1,19 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - 00-namespace.yaml
+  - 05-pull-secret.yaml
+  - 10-pods.yaml
+  - 20-service.yaml
+images:
+  - name: netbench
+    newName: cr.selcloud.ru/nettest/netbench
+    newTag: "1.0"
+patches:
+  - target:
+      kind: Pod
+    patch: |-
+      - op: add
+        path: /spec/imagePullSecrets
+        value:
+          - name: netbench-pull

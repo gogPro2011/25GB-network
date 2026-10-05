@@ -1,0 +1,9 @@
+#!/bin/sh
+# Снимок счётчиков: "<iface> <counter> <value>" для физических NIC (у которых есть /sys/class/net/X/device, в ВМ это virtio) + host-счётчики nstat
+# Запускается в hostNetwork-поде, поэтому видит интерфейсы ноды
+for d in /sys/class/net/*; do
+  [ -e "$d/device" ] || continue
+  n=${d##*/}
+  ethtool -S "$n" 2>/dev/null | awk -v d="$n" 'NR>1 && NF>=2 {sub(":","",$1); print d, $1, $2}'
+done
+nstat -az 2>/dev/null | awk '!/^#/ && NF>=2 {print "nstat", $1, $2}'

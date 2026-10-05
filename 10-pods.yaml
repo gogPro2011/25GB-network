@@ -1,0 +1,126 @@
+#нода A (label netbench=a):
+#srv-pod    сервер, сеть Calico
+#srv-host   сервер, hostNetwork
+#cli-local  клиент на той же ноде (pod-to-pod внутри ноды)
+#
+#нода B (label netbench=b)
+#cli-pod   клиент, сеть Calico
+#cli-host  клиент, hostNetwork
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: srv-pod
+  namespace: netbench
+  labels: {app: netbench, role: server}
+spec:
+  nodeSelector: {netbench: a}
+  tolerations: [{key: netbench, operator: Exists}]
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: bench
+      image: netbench
+      args:
+        - sh
+        - -c
+        - |
+          netserver -D -p 12865 &
+          exec iperf3 -s -p 5201
+      ports:
+        - {name: iperf-tcp, containerPort: 5201, protocol: TCP}
+        - {name: iperf-udp, containerPort: 5201, protocol: UDP}
+        - {name: netperf-ctl, containerPort: 12865, protocol: TCP}
+        - {name: netperf-data, containerPort: 12866, protocol: TCP}
+      readinessProbe:
+        tcpSocket: {port: 12865}
+        periodSeconds: 5
+      resources:
+        requests: {cpu: "4", memory: 1Gi}
+        limits: {memory: 1Gi}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: srv-host
+  namespace: netbench
+  labels: {app: netbench, role: server-host}
+spec:
+  nodeSelector: {netbench: a}
+  tolerations: [{key: netbench, operator: Exists}]
+  hostNetwork: true
+  hostPID: true
+  dnsPolicy: ClusterFirstWithHostNet
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: bench
+      image: netbench
+      args:
+        - sh
+        - -c
+        - |
+          netserver -D -p 22865 &
+          exec iperf3 -s -p 15201
+      readinessProbe:
+        tcpSocket: {port: 22865}
+        periodSeconds: 5
+      securityContext:
+        capabilities: {add: [NET_ADMIN, NET_RAW]}
+      resources:
+        requests: {cpu: "4", memory: 1Gi}
+        limits: {memory: 1Gi}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cli-pod
+  namespace: netbench
+  labels: {app: netbench, role: client}
+spec:
+  nodeSelector: {netbench: b}
+  tolerations: [{key: netbench, operator: Exists}]
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: bench
+      image: netbench
+      resources:
+        requests: {cpu: "4", memory: 1Gi}
+        limits: {memory: 1Gi}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cli-local
+  namespace: netbench
+  labels: {app: netbench, role: client}
+spec:
+  nodeSelector: {netbench: a}
+  tolerations: [{key: netbench, operator: Exists}]
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: bench
+      image: netbench
+      resources:
+        requests: {cpu: "4", memory: 1Gi}
+        limits: {memory: 1Gi}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cli-host
+  namespace: netbench
+  labels: {app: netbench, role: client-host}
+spec:
+  nodeSelector: {netbench: b}
+  tolerations: [{key: netbench, operator: Exists}]
+  hostNetwork: true
+  hostPID: true
+  dnsPolicy: ClusterFirstWithHostNet
+  terminationGracePeriodSeconds: 1
+  containers:
+    - name: bench
+      image: netbench
+      securityContext:
+        capabilities: {add: [NET_ADMIN, NET_RAW]}
+      resources:
+        requests: {cpu: "4", memory: 1Gi}
+        limits: {memory: 1Gi}
